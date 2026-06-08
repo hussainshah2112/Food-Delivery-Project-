@@ -1,0 +1,186 @@
+
+<style>
+#erd { padding: 8px 0; }
+#erd svg { display: block; }
+.mermaid-legend { display: flex; gap: 20px; font-size: 12px; color: var(--color-text-secondary); margin-top: 8px; padding: 0 8px; flex-wrap: wrap; }
+.mermaid-legend span { display: flex; align-items: center; gap: 6px; }
+.mermaid-legend i { display: inline-block; width: 24px; height: 2px; background: var(--color-text-secondary); }
+.mermaid-legend i.dashed { background: none; border-top: 2px dashed var(--color-text-secondary); }
+</style>
+<div id="erd"></div>
+<div class="mermaid-legend">
+  <span><i></i> Mandatory relationship</span>
+  <span><i class="dashed"></i> Optional relationship</span>
+</div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#1e2a3a' : '#E6F1FB',
+    primaryBorderColor: dark ? '#185FA5' : '#185FA5',
+    primaryTextColor: dark ? '#B5D4F4' : '#0C447C',
+    secondaryColor: dark ? '#1a2e28' : '#E1F5EE',
+    secondaryBorderColor: dark ? '#0F6E56' : '#0F6E56',
+    secondaryTextColor: dark ? '#9FE1CB' : '#085041',
+    tertiaryColor: dark ? '#2e1e2e' : '#FBEAF0',
+    tertiaryBorderColor: dark ? '#993556' : '#993556',
+    tertiaryTextColor: dark ? '#F4C0D1' : '#4B1528',
+    edgeLabelBackground: dark ? '#1a1a18' : '#ffffff',
+    attributeBackgroundColorEven: dark ? '#16202a' : '#f0f6fd',
+    attributeBackgroundColorOdd: dark ? '#1c1c1a' : '#ffffff',
+  },
+  er: { diagramPadding: 24, layoutDirection: 'TB', minEntityWidth: 100, minEntityHeight: 75, entityPadding: 15, useMaxWidth: true }
+});
+
+const diagram = `erDiagram
+  CUSTOMERS {
+    int customer_id PK
+    varchar full_name
+    varchar email
+    varchar phone
+    varchar address
+    varchar city
+    varchar password_hash
+    tinyint is_active
+    datetime created_at
+  }
+
+  RESTAURANTS {
+    int restaurant_id PK
+    varchar name
+    varchar cuisine_type
+    varchar address
+    varchar city
+    varchar phone
+    varchar email
+    time opening_time
+    time closing_time
+    tinyint is_active
+    decimal rating
+    datetime created_at
+  }
+
+  MENU_CATEGORIES {
+    int category_id PK
+    int restaurant_id FK
+    varchar name
+    varchar description
+  }
+
+  MENU_ITEMS {
+    int item_id PK
+    int restaurant_id FK
+    int category_id FK
+    varchar name
+    varchar description
+    decimal price
+    tinyint is_available
+    varchar image_url
+    datetime created_at
+  }
+
+  DELIVERY_PERSONNEL {
+    int personnel_id PK
+    varchar full_name
+    varchar phone
+    varchar email
+    enum vehicle_type
+    varchar vehicle_no
+    tinyint is_available
+    decimal rating
+    datetime created_at
+  }
+
+  ORDERS {
+    int order_id PK
+    int customer_id FK
+    int restaurant_id FK
+    int personnel_id FK
+    datetime order_date
+    varchar delivery_address
+    varchar delivery_city
+    decimal subtotal
+    decimal delivery_fee
+    decimal tax_amount
+    decimal total_amount
+    enum status
+    enum payment_method
+    enum payment_status
+    varchar special_notes
+    int estimated_delivery_time
+    datetime delivered_at
+  }
+
+  ORDER_ITEMS {
+    int order_item_id PK
+    int order_id FK
+    int item_id FK
+    int quantity
+    decimal unit_price
+    decimal line_total
+    varchar special_req
+  }
+
+  FEEDBACK {
+    int feedback_id PK
+    int order_id FK
+    int customer_id FK
+    int restaurant_id FK
+    int personnel_id FK
+    tinyint food_rating
+    tinyint delivery_rating
+    text comment
+    datetime created_at
+  }
+
+  CUSTOMERS ||--o{ ORDERS : "places"
+  RESTAURANTS ||--o{ ORDERS : "receives"
+  DELIVERY_PERSONNEL ||--o{ ORDERS : "delivers"
+  ORDERS ||--|{ ORDER_ITEMS : "contains"
+  MENU_ITEMS ||--o{ ORDER_ITEMS : "included in"
+  RESTAURANTS ||--|{ MENU_CATEGORIES : "has"
+  RESTAURANTS ||--o{ MENU_ITEMS : "offers"
+  MENU_CATEGORIES ||--o{ MENU_ITEMS : "groups"
+  ORDERS ||--o| FEEDBACK : "reviewed via"
+  CUSTOMERS ||--o{ FEEDBACK : "submits"
+  RESTAURANTS ||--o{ FEEDBACK : "receives"
+  DELIVERY_PERSONNEL ||--o{ FEEDBACK : "rated in"
+`;
+
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg .row-rect-odd path, #erd svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>
